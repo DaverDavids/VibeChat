@@ -32,31 +32,36 @@ MORPH_STEPS        = 8     # number of intermediate state pushes per transition
 MORPH_STEP_DELAY   = 4.0  # seconds between each morph step
 
 DEFAULT_SETTINGS = {
-    "bpm": 100,
-    "cutoff": 70,
-    "synth": "supersaw",
+    "bpm": 88,
+    "cutoff": 82,
+    "synth": "tb303",
     "sleep": 0.5,
 }
 
 SYSTEM_PROMPT = """
-You are composing evolving background focus music for Sonic Pi. Output JSON only, no markdown.
+You are composing evolving lofi/background focus music for Sonic Pi. Output JSON only, no markdown.
 
 Rules:
 - Output valid JSON only using schema: version, meta, global, arrangement, parts, fx
-- bpm: 72-118. Prefer gradual movement, not jarring changes.
-- Always include: kick, hat, bass, pad. Optionally add: snare, lead, texture, perc.
-- Prefer 5-8 parts total for richness.
-- Vary drum patterns with syncopation and occasional rests (not just simple 1/0 grids).
-- Bass lines should have 4-8 notes with varied durations, not all the same length.
-- Pad degrees should span at least 4 chords, using passing tones.
-- Add at least one fx (reverb or echo) with moderate mix.
-- melody parts: use density 0.3-0.6, varied sleep_choices like [0.25, 0.5, 0.5, 0.75].
-- Keep amp values subtle: drums 0.5-0.9, bass 0.3-0.5, pads 0.15-0.28, leads 0.12-0.22.
+- bpm: 72-118. Lofi sweet spot is 75-95. Avoid jarring BPM jumps.
+- Always include: kick, hat, bass, pad. Optionally add: snare, lead, texture, perc, arp.
+- Prefer 6-8 parts total for richness. More parts = more interesting tracks.
+- Part types allowed: drum, bass, chords, melody, texture, perc, arp
+- Drum patterns: syncopated, ghost notes, off-beat hats. Not just simple 1/0 grids.
+- Bass: 4-8 notes, varied durations. tb303 with res 0.7-0.9 for lofi warmth.
+- Pad degrees: at least 4 chords e.g. [1,6,4,5] or [1,3,4,7]. Use invert_chance 0.25-0.4.
+- chord_kind: minor7, major7, dom7, minor, major (minor7/major7 for lofi jazz feel)
+- arp parts: direction "up"/"down"/"ping_pong", sleep 0.25-0.5, amp 0.10-0.18, probability 0.7-0.9
+- perc parts: sparse patterns, probability 0.5-0.75. Use tabla_ke1 or perc_snap samples.
+- lead/melody: density 0.3-0.55, sleep_choices like [0.25, 0.5, 0.5, 0.75], repeat_bias 0.2-0.35
+- texture: ambi samples, sleep 8-16, amp 0.10-0.20, probability 0.4-0.6
+- Amp targets: drums 0.5-0.9, bass 0.3-0.5, pads 0.15-0.28, leads/arps 0.10-0.22
 - Allowed scales: minor_pentatonic, major_pentatonic, minor, major, dorian, mixolydian
 - Allowed synths: beep, sine, tri, pulse, fm, prophet, tb303, blade, dsaw, supersaw, hollow
 - Allowed samples: bd_haus, drum_snare_soft, drum_cymbal_closed, elec_blip, elec_tick, perc_snap, tabla_ke1, ambi_soft_buzz, ambi_lunar_land, guit_em9
 - Allowed fx: reverb, echo, lpf, hpf, ixi_techno, slicer, distortion, wobble, krush
-- Keep it musical, varied, and suitable for focus listening unless the user asks otherwise.
+- Add at least one fx: reverb mix 0.2-0.35 room 0.6-0.85. Echo mix 0.08-0.15 is a nice pair.
+- For authentic lofi: dorian/minor scale, jazzy chord degrees, tabla/perc accents, blade leads, ambi textures.
 - Never invent fields outside the schema.
 """.strip()
 
@@ -80,24 +85,24 @@ ALLOWED_FX = {
 DEFAULT_SPEC = {
     "version": 1,
     "meta": {
-        "title": "Default Focus Groove",
-        "energy": 0.4,
-        "brightness": 0.4,
-        "complexity": 0.35,
-        "swing": 0.04,
-        "seed": 1234
+        "title": "Late Night Lofi",
+        "energy": 0.38,
+        "brightness": 0.35,
+        "complexity": 0.42,
+        "swing": 0.06,
+        "seed": 4242
     },
     "global": {
-        "bpm": 100,
-        "root": "e2",
-        "scale": "minor_pentatonic",
+        "bpm": 88,
+        "root": "d2",
+        "scale": "dorian",
         "bar_beats": 4,
-        "master_amp": 0.9
+        "master_amp": 0.88
     },
     "arrangement": {
         "section_length_bars": 8,
         "progression": [
-            {"name": "main", "bars": 9999, "active_parts": ["kick", "hat", "bass", "pad"]}
+            {"name": "main", "bars": 9999, "active_parts": ["kick", "hat", "snare", "bass", "pad", "lead", "arp", "perc", "texture"]}
         ]
     },
     "parts": [
@@ -105,9 +110,9 @@ DEFAULT_SPEC = {
             "name": "kick",
             "type": "drum",
             "sample": "bd_haus",
-            "step_sleep": 0.5,
-            "pattern": [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0],
-            "amp": 0.85,
+            "step_sleep": 0.25,
+            "pattern": [1,0,0,0,1,0,0,0,1,0,1,0,1,0,0,0],
+            "amp": 0.82,
             "probability": 1.0,
             "humanize_timing": 0.005,
             "humanize_amp": 0.04
@@ -117,20 +122,20 @@ DEFAULT_SPEC = {
             "type": "drum",
             "sample": "drum_cymbal_closed",
             "step_sleep": 0.25,
-            "pattern": [0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,0],
-            "amp": 0.32,
+            "pattern": [0,1,0,1,0,1,0,1,0,1,0,1,0,1,1,0],
+            "amp": 0.3,
             "probability": 0.88,
             "humanize_timing": 0.012,
-            "humanize_amp": 0.07
+            "humanize_amp": 0.08
         },
         {
             "name": "snare",
             "type": "drum",
             "sample": "drum_snare_soft",
             "step_sleep": 0.25,
-            "pattern": [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,1],
+            "pattern": [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
             "amp": 0.5,
-            "probability": 0.92,
+            "probability": 0.94,
             "humanize_timing": 0.008,
             "humanize_amp": 0.05
         },
@@ -138,20 +143,20 @@ DEFAULT_SPEC = {
             "name": "bass",
             "type": "bass",
             "synth": "tb303",
-            "notes": ["e1", "e1", "g1", "a1", "b1", "g1", "a1", "e1"],
+            "notes": ["d1", "d1", "f1", "g1", "a1", "g1", "f1", "d1"],
             "durations": [0.5, 0.25, 0.5, 0.75, 0.5, 0.25, 0.5, 1.0],
-            "release": 0.2,
-            "cutoff": 80,
-            "res": 0.75,
-            "amp": 0.42,
-            "play_probability": 0.93,
+            "release": 0.18,
+            "cutoff": 82,
+            "res": 0.82,
+            "amp": 0.44,
+            "play_probability": 0.94,
             "transpose": 0
         },
         {
             "name": "pad",
             "type": "chords",
             "synth": "prophet",
-            "degrees": [1, 6, 4, 5, 1, 3, 4, 5],
+            "degrees": [1, 6, 4, 5, 1, 3, 4, 2],
             "chord_kind": "minor7",
             "sleep": 4,
             "release": 3.5,
@@ -163,27 +168,51 @@ DEFAULT_SPEC = {
             "name": "lead",
             "type": "melody",
             "synth": "blade",
-            "density": 0.4,
+            "density": 0.42,
             "octave": 1,
             "sleep_choices": [0.25, 0.25, 0.5, 0.5, 0.75],
-            "release_range": [0.08, 0.35],
-            "cutoff_range": [75, 112],
+            "release_range": [0.08, 0.32],
+            "cutoff_range": [78, 112],
             "amp": 0.17,
-            "rest_probability": 0.38
+            "rest_probability": 0.38,
+            "repeat_bias": 0.28
+        },
+        {
+            "name": "arp",
+            "type": "arp",
+            "synth": "tri",
+            "octaves": 2,
+            "direction": "up",
+            "sleep": 0.25,
+            "release": 0.14,
+            "cutoff": 90,
+            "amp": 0.13,
+            "probability": 0.75
+        },
+        {
+            "name": "perc",
+            "type": "perc",
+            "sample": "tabla_ke1",
+            "step_sleep": 0.25,
+            "pattern": [0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0],
+            "amp": 0.28,
+            "probability": 0.65,
+            "rate_range": [0.85, 1.15],
+            "humanize_timing": 0.01
         },
         {
             "name": "texture",
             "type": "texture",
             "sample": "ambi_soft_buzz",
-            "sleep": 8,
-            "rate_range": [0.4, 1.1],
-            "amp": 0.12,
-            "probability": 0.45
+            "sleep": 10,
+            "rate_range": [0.4, 0.9],
+            "amp": 0.13,
+            "probability": 0.48
         }
     ],
     "fx": {
         "master": [
-            {"name": "reverb", "mix": 0.22, "room": 0.75},
+            {"name": "reverb", "mix": 0.28, "room": 0.72},
             {"name": "echo", "mix": 0.1, "phase": 0.5, "decay": 4}
         ]
     }
@@ -324,7 +353,6 @@ def repair_json(text: str) -> str:
     start = text.find("{")
     if start == -1:
         raise RuntimeError("Model did not return JSON (no opening brace)")
-    # find the matching closing brace
     depth = 0
     end = -1
     in_str = False
@@ -348,14 +376,13 @@ def repair_json(text: str) -> str:
                 end = i
                 break
     if end == -1:
-        # truncated — take everything from start, we'll close it below
         text = text[start:]
     else:
         text = text[start:end + 1]
 
-    # 3. remove JS comments (outside strings — rough but effective for model output)
-    text = re.sub(r'(?<!:)//[^\n]*', '', text)          # // line comments
-    text = re.sub(r'/\*.*?\*/', '', text, flags=re.DOTALL)  # /* block comments */
+    # 3. remove JS comments
+    text = re.sub(r'(?<!:)//[^\n]*', '', text)
+    text = re.sub(r'/\*.*?\*/', '', text, flags=re.DOTALL)
 
     # 4. Python literals
     text = re.sub(r'\bTrue\b',  'true',  text)
@@ -363,8 +390,6 @@ def repair_json(text: str) -> str:
     text = re.sub(r'\bNone\b',  'null',  text)
 
     # 5. single-quoted strings -> double-quoted
-    #    Only swap outer quotes; don't touch apostrophes inside words.
-    #    Strategy: tokenise keeping track of whether we're in a double-quoted string.
     def fix_single_quotes(s):
         result = []
         i = 0
@@ -384,7 +409,6 @@ def repair_json(text: str) -> str:
                 i += 1
                 continue
             if c == "'" and not in_dq:
-                # scan forward to closing single quote
                 j = i + 1
                 content = []
                 while j < len(s) and s[j] != "'":
@@ -394,7 +418,6 @@ def repair_json(text: str) -> str:
                     content.append(s[j])
                     j += 1
                 inner = ''.join(content)
-                # escape any double quotes inside
                 inner = inner.replace('"', '\\"')
                 result.append('"' + inner + '"')
                 i = j + 1
@@ -405,10 +428,10 @@ def repair_json(text: str) -> str:
 
     text = fix_single_quotes(text)
 
-    # 6. trailing commas before } or ]
+    # 6. trailing commas
     text = re.sub(r',\s*([}\]])', r'\1', text)
 
-    # 7. close unclosed braces/brackets (truncated model output)
+    # 7. close unclosed braces/brackets
     stack = []
     in_str = False
     esc = False
@@ -432,7 +455,6 @@ def repair_json(text: str) -> str:
             if stack and stack[-1] == '[':
                 stack.pop()
 
-    # close any still-open containers
     closers = {'{': '}', '[': ']'}
     for opener in reversed(stack):
         text += closers[opener]
@@ -510,6 +532,68 @@ end
 """.strip()
 
 
+def render_perc_loop(p):
+    """Render a sparse percussive loop (tabla, snaps, etc.) with per-step probability."""
+    pattern = p.get("pattern", [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0])
+    step_sleep = float(p.get("step_sleep", 0.25))
+    probability = float(clamp(float(p.get("probability", 0.7)), 0.0, 1.0))
+    amp = float(clamp(float(p.get("amp", 0.3)), 0.0, 1.0))
+    sample = ruby_sym(p.get("sample", "tabla_ke1"))
+    rate_range = p.get("rate_range", [0.85, 1.15])
+    humanize_timing = float(clamp(float(p.get("humanize_timing", 0.008)), 0.0, 0.05))
+
+    return f"""
+live_loop :{p["name"]} do
+  vals = (ring {", ".join(str(int(bool(x))) for x in pattern)})
+  hit = vals.tick
+  if hit == 1 && rand <= {probability}
+    sample {sample}, rate: rrand({float(rate_range[0])}, {float(rate_range[1])}), amp: {amp}
+  end
+  sleep ({step_sleep} + rrand(-{humanize_timing}, {humanize_timing})).clamp(0.01, 4)
+end
+""".strip()
+
+
+def render_arp_loop(p, root, scale_name):
+    """Render an arpeggio loop. direction: up, down, or ping_pong."""
+    synth = ruby_sym(p.get("synth", "tri"))
+    octaves = int(clamp(int(p.get("octaves", 2)), 1, 4))
+    direction = str(p.get("direction", "up"))
+    sleep_val = float(clamp(float(p.get("sleep", 0.25)), 0.125, 2.0))
+    release = float(clamp(float(p.get("release", 0.15)), 0.05, 2.0))
+    cutoff = int(clamp(int(p.get("cutoff", 90)), 40, 130))
+    amp = float(clamp(float(p.get("amp", 0.14)), 0.0, 1.0))
+    probability = float(clamp(float(p.get("probability", 0.8)), 0.0, 1.0))
+
+    if direction == "down":
+        sort_expr = "ns = scale({root}, {scale}, num_octaves: {oct}).sort.reverse".format(
+            root=ruby_sym(root), scale=ruby_sym(scale_name), oct=octaves)
+        tick_expr = "ns.tick"
+    elif direction == "ping_pong":
+        sort_expr = (
+            "_up = scale({root}, {scale}, num_octaves: {oct}).sort\n"
+            "  _dn = _up.reverse\n"
+            "  ns = (_up + _dn[1..-2]).ring"
+        ).format(root=ruby_sym(root), scale=ruby_sym(scale_name), oct=octaves)
+        tick_expr = "ns.tick"
+    else:  # up (default)
+        sort_expr = "ns = scale({root}, {scale}, num_octaves: {oct}).sort".format(
+            root=ruby_sym(root), scale=ruby_sym(scale_name), oct=octaves)
+        tick_expr = "ns.tick"
+
+    return f"""
+live_loop :{p["name"]} do
+  use_synth {synth}
+  {sort_expr}
+  n = {tick_expr}
+  if rand <= {probability}
+    play n, release: {release}, cutoff: {cutoff}, amp: {amp}, pan: rrand(-0.35, 0.35)
+  end
+  sleep {sleep_val}
+end
+""".strip()
+
+
 def render_bass_loop(p, root, scale_name):
     notes = p.get("notes", [root])
     durations = p.get("durations", [0.5, 0.5, 1.0])
@@ -543,6 +627,8 @@ def render_chord_loop(p, root, scale_name):
     release = float(p.get("release", 3.0))
     cutoff = int(clamp(int(p.get("cutoff", 90)), 40, 130))
     amp = float(clamp(float(p.get("amp", 0.25)), 0.0, 1.0))
+    # invert_chance: randomly rotate the chord voicing for harmonic variety
+    invert_chance = float(clamp(float(p.get("invert_chance", 0.0)), 0.0, 1.0))
 
     return f"""
 live_loop :{p["name"]} do
@@ -550,177 +636,11 @@ live_loop :{p["name"]} do
   degs = (ring {", ".join(str(int(d)) for d in degrees)})
   d = degs.tick
   ch = chord_degree(d, {ruby_sym(root)}, {ruby_sym(scale_name)}, 4)
-  play ch, release: {release}, cutoff: {cutoff}, amp: {amp}
+  inv = (rand < {invert_chance}) ? rand_i(3) : 0
+  play ch.rotate(inv), release: {release}, cutoff: {cutoff}, amp: {amp}
   sleep {sleep_val}
 end
 """.strip()
-
-
-def find_part(spec: dict, name: str):
-    for p in spec.get("parts", []):
-        if p.get("name") == name:
-            return p
-    return None
-
-
-def render_engine_boot(spec: dict) -> str:
-    g = spec["global"]
-    root = ruby_sym(g["root"])
-    scale_name = ruby_sym(g["scale"])
-
-    return f"""
-set :ai_bpm, {int(g["bpm"])}
-set :ai_root, {root}
-set :ai_scale, {scale_name}
-set :ai_master_amp, {float(g["master_amp"])}
-
-set :ai_kick_pattern, {ruby_array(find_part(spec, "kick").get("pattern", [1,0,0,0]) if find_part(spec, "kick") else [1,0,0,0])}
-set :ai_hat_pattern, {ruby_array(find_part(spec, "hat").get("pattern", [0,0,1,0]) if find_part(spec, "hat") else [0,0,1,0])}
-set :ai_snare_pattern, {ruby_array(find_part(spec, "snare").get("pattern", [0,0,0,0,1,0,0,0]) if find_part(spec, "snare") else [0,0,0,0,1,0,0,0])}
-
-set :ai_bass_notes, {ruby_array(find_part(spec, "bass").get("notes", ["e1","g1","a1"]) if find_part(spec, "bass") else ["e1","g1","a1"])}
-set :ai_bass_durations, {ruby_array(find_part(spec, "bass").get("durations", [0.5,0.5,1.0]) if find_part(spec, "bass") else [0.5,0.5,1.0])}
-
-set :ai_pad_degrees, {ruby_array(find_part(spec, "pad").get("degrees", [1,4,6,5]) if find_part(spec, "pad") else [1,4,6,5])}
-set :ai_lead_density, {float(find_part(spec, "lead").get("density", 0.35) if find_part(spec, "lead") else 0.35)}
-
-live_loop :conductor do
-  use_bpm get(:ai_bpm)
-  sleep 1
-end
-
-live_loop :kick do
-  use_bpm get(:ai_bpm)
-  pat = (ring *get(:ai_kick_pattern))
-  sample :bd_haus, amp: (0.85 + rrand(-0.04, 0.04)) * get(:ai_master_amp) if pat.tick == 1
-  sleep 0.25
-end
-
-live_loop :hat do
-  use_bpm get(:ai_bpm)
-  pat = (ring *get(:ai_hat_pattern))
-  sample :drum_cymbal_closed, amp: (0.32 + rrand(-0.06, 0.06)) * get(:ai_master_amp) if pat.tick == 1
-  sleep 0.25
-end
-
-live_loop :snare do
-  use_bpm get(:ai_bpm)
-  pat = (ring *get(:ai_snare_pattern))
-  sample :drum_snare_soft, amp: (0.5 + rrand(-0.05, 0.05)) * get(:ai_master_amp) if pat.tick == 1
-  sleep 0.25
-end
-
-live_loop :bass do
-  use_bpm get(:ai_bpm)
-  use_synth :tb303
-  ns = (ring *get(:ai_bass_notes))
-  ds = (ring *get(:ai_bass_durations))
-  play note(ns.tick), release: 0.2, cutoff: rrand_i(75, 92), res: 0.75, amp: 0.42 * get(:ai_master_amp)
-  sleep ds.tick
-end
-
-live_loop :pad do
-  use_bpm get(:ai_bpm)
-  use_synth :prophet
-  degs = (ring *get(:ai_pad_degrees))
-  ch = chord_degree(degs.tick, get(:ai_root), get(:ai_scale), 4)
-  play ch, sustain: 3.2, release: 1.2, cutoff: rrand_i(82, 96), amp: 0.2 * get(:ai_master_amp)
-  sleep 4
-end
-
-live_loop :lead do
-  use_bpm get(:ai_bpm)
-  use_synth :blade
-  ns = scale(get(:ai_root), get(:ai_scale), num_octaves: 2)
-  if rand < get(:ai_lead_density)
-    play ns.choose,
-      release: rrand(0.08, 0.38),
-      cutoff:  rrand_i(74, 114),
-      amp:     rrand(0.11, 0.21) * get(:ai_master_amp),
-      pan:     rrand(-0.45, 0.45)
-  end
-  sleep (ring 0.25, 0.25, 0.5, 0.5, 0.75).choose
-end
-
-live_loop :variation do
-  use_bpm get(:ai_bpm)
-  sleep 16
-  if one_in(3)
-    4.times do
-      use_synth :tri
-      ns = scale(get(:ai_root), get(:ai_scale), num_octaves: 3)
-      play ns.choose, release: 0.1, amp: 0.13 * get(:ai_master_amp), pan: rrand(-0.3, 0.3)
-      sleep 0.25
-    end
-  end
-end
-""".strip()
-
-
-def render_state_update(spec: dict) -> str:
-    g = spec["global"]
-    kick = find_part(spec, "kick")
-    hat = find_part(spec, "hat")
-    snare = find_part(spec, "snare")
-    bass = find_part(spec, "bass")
-    pad = find_part(spec, "pad")
-    lead = find_part(spec, "lead")
-
-    return f"""
-set :ai_bpm, {int(g["bpm"])}
-set :ai_root, {ruby_sym(g["root"])}
-set :ai_scale, {ruby_sym(g["scale"])}
-set :ai_master_amp, {float(g["master_amp"])}
-
-set :ai_kick_pattern, {ruby_array(kick.get("pattern", [1,0,0,0])) if kick else "[1,0,0,0]"}
-set :ai_hat_pattern, {ruby_array(hat.get("pattern", [0,0,1,0])) if hat else "[0,0,1,0]"}
-set :ai_snare_pattern, {ruby_array(snare.get("pattern", [0,0,0,0,1,0,0,0])) if snare else "[0,0,0,0,1,0,0,0]"}
-
-set :ai_bass_notes, {ruby_array(bass.get("notes", ["e1","g1","a1"])) if bass else "[:e1,:g1,:a1]"}
-set :ai_bass_durations, {ruby_array(bass.get("durations", [0.5,0.5,1.0])) if bass else "[0.5,0.5,1.0]"}
-
-set :ai_pad_degrees, {ruby_array(pad.get("degrees", [1,4,6,5])) if pad else "[1,4,6,5]"}
-set :ai_lead_density, {float(lead.get("density", 0.35) if lead else 0.35)}
-""".strip()
-
-
-def lerp_val(a, b, t):
-    if isinstance(a, (int, float)) and isinstance(b, (int, float)):
-        return a + (b - a) * t
-    return b
-
-
-def lerp_spec(s1: dict, s2: dict, t: float) -> dict:
-    """Blend global numeric params between s1 and s2 at position t (0..1)."""
-    merged = copy.deepcopy(s2)
-    g1 = s1.get("global", {})
-    g2 = s2.get("global", {})
-    merged["global"]["bpm"] = int(lerp_val(g1.get("bpm", 100), g2.get("bpm", 100), t))
-    merged["global"]["master_amp"] = round(lerp_val(
-        g1.get("master_amp", 0.9), g2.get("master_amp", 0.9), t), 3)
-    lead1 = find_part(s1, "lead")
-    lead2 = find_part(s2, "lead")
-    if lead1 and lead2:
-        for p in merged["parts"]:
-            if p.get("name") == "lead":
-                p["density"] = round(lerp_val(
-                    lead1.get("density", 0.35), lead2.get("density", 0.35), t), 3)
-    return merged
-
-
-def morph_to_spec(old_spec: dict, new_spec: dict):
-    """Push MORPH_STEPS intermediate state updates to smooth the transition."""
-    for i in range(1, MORPH_STEPS + 1):
-        t = i / MORPH_STEPS
-        intermediate = lerp_spec(old_spec, new_spec, t)
-        try:
-            run_code(render_state_update(intermediate))
-            log.info("Morph step %d/%d (t=%.2f)", i, MORPH_STEPS, t)
-        except Exception as e:
-            log.warning("Morph step %d failed: %s", i, e)
-            break
-        if i < MORPH_STEPS:
-            time.sleep(MORPH_STEP_DELAY)
 
 
 def render_melody_loop(p, root, scale_name):
@@ -732,13 +652,18 @@ def render_melody_loop(p, root, scale_name):
     cutoff_range = p.get("cutoff_range", [80, 110])
     amp = float(clamp(float(p.get("amp", 0.2)), 0.0, 1.0))
     rest_probability = float(clamp(float(p.get("rest_probability", 0.35)), 0.0, 1.0))
+    # repeat_bias: chance to replay the last note for lofi phrase repetition
+    repeat_bias = float(clamp(float(p.get("repeat_bias", 0.0)), 0.0, 1.0))
+    loop_name = p["name"]
 
     return f"""
-live_loop :{p["name"]} do
+live_loop :{loop_name} do
   use_synth {synth}
   ns = scale({ruby_sym(root)}, {ruby_sym(scale_name)}, num_octaves: {max(1, octave + 1)})
   if rand > {rest_probability}
-    play ns.choose,
+    n = (rand < {repeat_bias} && @{loop_name}_last) ? @{loop_name}_last : ns.choose
+    @{loop_name}_last = n
+    play n,
       release: rrand({float(release_range[0])}, {float(release_range[1])}),
       cutoff: rrand_i({int(cutoff_range[0])}, {int(cutoff_range[1])}),
       amp: {amp * max(0.2, density)},
@@ -766,7 +691,19 @@ end
 """.strip()
 
 
+def find_part(spec: dict, name: str):
+    for p in spec.get("parts", []):
+        if p.get("name") == name:
+            return p
+    return None
+
+
 def render_sonic_pi_code(spec: dict) -> str:
+    """
+    Single source of truth for all Sonic Pi code generation.
+    Used for both initial boot and live updates — Sonic Pi hot-swaps
+    live_loops with the same name at the next safe loop boundary.
+    """
     g = spec["global"]
     fx_list = spec.get("fx", {}).get("master", []) if isinstance(spec.get("fx"), dict) else []
     lines = [
@@ -782,14 +719,20 @@ def render_sonic_pi_code(spec: dict) -> str:
         ptype = p.get("type")
         if ptype == "drum":
             lines.append(render_drum_loop(p))
+        elif ptype == "perc":
+            lines.append(render_perc_loop(p))
         elif ptype == "bass":
             lines.append(render_bass_loop(p, g["root"], g["scale"]))
         elif ptype == "chords":
             lines.append(render_chord_loop(p, g["root"], g["scale"]))
         elif ptype == "melody":
             lines.append(render_melody_loop(p, g["root"], g["scale"]))
+        elif ptype == "arp":
+            lines.append(render_arp_loop(p, g["root"], g["scale"]))
         elif ptype == "texture":
             lines.append(render_texture_loop(p))
+        else:
+            log.warning("Unknown part type %r for part %r — skipped", ptype, p.get("name"))
 
         lines.append("")
 
@@ -813,12 +756,12 @@ def validate_spec(spec: dict) -> dict:
 
     g = spec["global"]
     g["bpm"] = int(clamp(int(g.get("bpm", state["last_settings"]["bpm"])), 70, 140))
-    g["root"] = str(g.get("root", "e2")).lower()
-    g["scale"] = str(g.get("scale", "minor_pentatonic"))
+    g["root"] = str(g.get("root", "d2")).lower()
+    g["scale"] = str(g.get("scale", "dorian"))
     if g["scale"] not in ALLOWED_SCALES:
-        g["scale"] = "minor_pentatonic"
+        g["scale"] = "dorian"
     g["bar_beats"] = int(clamp(int(g.get("bar_beats", 4)), 3, 8))
-    g["master_amp"] = float(clamp(float(g.get("master_amp", 0.9)), 0.0, 1.0))
+    g["master_amp"] = float(clamp(float(g.get("master_amp", 0.88)), 0.0, 1.0))
 
     meta = spec["meta"]
     meta["title"] = str(meta.get("title", "AI Piece"))[:120]
@@ -833,12 +776,16 @@ def validate_spec(spec: dict) -> dict:
     if not isinstance(prog, list) or not prog:
         arr["progression"] = [{"name": "main", "bars": 9999, "active_parts": []}]
 
+    VALID_TYPES = {"drum", "perc", "bass", "chords", "melody", "arp", "texture"}
     valid_parts = []
     for p in spec["parts"]:
         if not isinstance(p, dict):
             continue
         p["name"] = str(p.get("name", f"part_{len(valid_parts)}")).lower()
         p["type"] = str(p.get("type", "texture")).lower()
+        if p["type"] not in VALID_TYPES:
+            log.warning("Dropping part %r with unknown type %r", p["name"], p["type"])
+            continue
         p["amp"] = float(clamp(float(p.get("amp", 0.4)), 0.0, 1.0))
 
         if "synth" in p:
@@ -890,6 +837,52 @@ def send_settings(bpm, cutoff, synth, sleep):
     return state["last_settings"]
 
 
+def lerp_val(a, b, t):
+    if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+        return a + (b - a) * t
+    return b
+
+
+def lerp_spec(s1: dict, s2: dict, t: float) -> dict:
+    """Blend numeric params between s1 and s2 at position t (0..1) for smooth morphing."""
+    merged = copy.deepcopy(s2)
+
+    # Global params
+    g1 = s1.get("global", {})
+    g2 = s2.get("global", {})
+    merged["global"]["bpm"] = int(lerp_val(g1.get("bpm", 88), g2.get("bpm", 88), t))
+    merged["global"]["master_amp"] = round(
+        lerp_val(g1.get("master_amp", 0.88), g2.get("master_amp", 0.88), t), 3)
+
+    # Per-part numeric fields that benefit from smooth interpolation
+    LERP_FIELDS = ["amp", "density", "cutoff", "release", "res", "probability"]
+    for p2 in merged.get("parts", []):
+        p1 = find_part(s1, p2["name"])
+        if not p1:
+            continue
+        for field in LERP_FIELDS:
+            if field in p1 and field in p2:
+                raw = lerp_val(p1[field], p2[field], t)
+                p2[field] = int(round(raw)) if field == "cutoff" else round(raw, 3)
+
+    return merged
+
+
+def morph_to_spec(old_spec: dict, new_spec: dict):
+    """Push MORPH_STEPS intermediate renders to Sonic Pi for a smooth transition."""
+    for i in range(1, MORPH_STEPS + 1):
+        t = i / MORPH_STEPS
+        intermediate = lerp_spec(old_spec, new_spec, t)
+        try:
+            run_code(render_sonic_pi_code(intermediate))
+            log.info("Morph step %d/%d (t=%.2f)", i, MORPH_STEPS, t)
+        except Exception as e:
+            log.warning("Morph step %d failed: %s", i, e)
+            break
+        if i < MORPH_STEPS:
+            time.sleep(MORPH_STEP_DELAY)
+
+
 def generate_and_send(prompt_text: str):
     settings = state["last_settings"]
 
@@ -922,26 +915,30 @@ def generate_and_send(prompt_text: str):
     spec = json.loads(raw_json)
     spec = validate_spec(spec)
 
+    code = render_sonic_pi_code(spec)
+
     with lock:
         booted = state.get("engine_booted", False)
         old_spec = state.get("last_spec") or spec
 
     if not booted:
-        run_code(render_engine_boot(spec))
+        # First boot: send full code directly
+        run_code(code)
     else:
+        # Subsequent updates: morph smoothly, final step sends the full new code
         morph_to_spec(old_spec, spec)
 
     item = {
         "time": now(),
         "prompt": prompt_text,
         "spec": spec,
-        "code": render_state_update(spec),
+        "code": code,
     }
 
     with lock:
         history.appendleft(item)
         state["last_prompt"] = prompt_text
-        state["last_generated_code"] = item["code"]
+        state["last_generated_code"] = code
         state["last_error"] = None
         state["last_sent_at"] = item["time"]
         state["engine_booted"] = True
@@ -954,10 +951,7 @@ def generate_and_send(prompt_text: str):
 
 def send_test_ping():
     spec = DEFAULT_SPEC.copy()
-    with lock:
-        booted = state.get("engine_booted", False)
-
-    code = render_engine_boot(spec) if not booted else render_state_update(spec)
+    code = render_sonic_pi_code(spec)
     run_code(code)
 
     with lock:
@@ -966,7 +960,7 @@ def send_test_ping():
             state["last_spec"] = spec
         save_state()
 
-    log.info("Sent test composition update")
+    log.info("Sent test composition")
     return {"status": "ok", "message": "Test composition sent"}
 
 
