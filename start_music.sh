@@ -2,6 +2,7 @@
 set -euo pipefail
 
 LOG=/root/VibeChat/logs/sonic-pi-headless.log
+mkdir -p /root/VibeChat/logs
 exec >>"$LOG" 2>&1
 
 echo "==== $(date) starting headless music stack ===="
@@ -10,14 +11,14 @@ export DISPLAY=:1
 
 cleanup() {
   echo "Stopping headless stack..."
-  pkill -TERM -f "ffmpeg -loglevel" || true
+  pkill -TERM -f "ffmpeg" || true
   pkill -TERM -f "sonic-pi" || true
-  pkill -TERM -f "jackd -d dummy" || true
-  pkill -TERM -f "x11vnc -display :1" || true
-  pkill -TERM -f "fluxbox" || true
+  pkill -TERM -f "jackd" || true
+  pkill -TERM -f "x11vnc" || true
+  pkill -TERM -f "openbox" || true
   pkill -TERM -f "Xvfb :1" || true
   sleep 2
-  pkill -KILL -f "ffmpeg -loglevel|sonic-pi|jackd -d dummy|x11vnc -display :1|fluxbox|Xvfb :1" || true
+  pkill -KILL -f "ffmpeg|sonic-pi|jackd|x11vnc|openbox|Xvfb" || true
 }
 
 trap cleanup EXIT TERM INT
@@ -41,13 +42,17 @@ for i in $(seq 1 60); do
   sleep 1
 done
 
-
-while true; do
-  echo "Starting ffmpeg SRT listener on :5000"
-  ffmpeg -nostdin -loglevel warning -f jack -i ffmpeg -c:a aac -b:a 192k -ar 48000 -ac 2 -frame_size 1024: -f mpegts srt://0.0.0.0:5000?mode=listener &
-  echo "ffmpeg exited, retrying in 2s"
-  sleep 2
-done &
+# ffmpeg restart loop - runs ffmpeg in foreground so loop waits for exit before restarting
+(
+  while true; do
+    echo "Starting ffmpeg SRT listener on :5000"
+    ffmpeg -nostdin -loglevel warning -f jack -i ffmpeg \
+      -c:a aac -b:a 192k -ar 48000 -ac 2 -frame_size 1024 \
+      -f mpegts "srt://0.0.0.0:5000?mode=listener" || true
+    echo "ffmpeg exited, retrying in 2s"
+    sleep 2
+  done
+) &
 
 echo "Waiting for ffmpeg JACK ports..."
 for i in $(seq 1 30); do
