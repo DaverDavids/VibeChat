@@ -14,10 +14,10 @@ from pathlib import Path
 import requests
 from flask import Flask, jsonify, render_template, request
 
-BASE_DIR = Path("/root/music")
+BASE_DIR = Path("/root/VibeChat")
 TEMPLATES_DIR = BASE_DIR / "templates"
-BRIDGE_LOG = BASE_DIR / "sonic-ai-bridge.log"
-HEADLESS_LOG = BASE_DIR / "sonic-pi-headless.log"
+BRIDGE_LOG = BASE_DIR / "logs/sonic-ai-bridge.log"
+HEADLESS_LOG = BASE_DIR / "logs/sonic-pi-headless.log"
 STATE_FILE = BASE_DIR / "ai_state.json"
 
 OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
@@ -252,6 +252,8 @@ def run_code(code: str):
     if result.returncode != 0:
         err = (result.stderr or result.stdout or "sonic-pi-tool failed").strip()
         raise RuntimeError(err)
+
+
 def stop_all_jobs():
     result = subprocess.run(
         ["sonic-pi-tool.py", "stop"],
@@ -378,6 +380,14 @@ live_loop :{p["name"]} do
 end
 """.strip()
 
+
+def find_part(spec: dict, name: str):
+    for p in spec.get("parts", []):
+        if p.get("name") == name:
+            return p
+    return None
+
+
 def render_engine_boot(spec: dict) -> str:
     g = spec["global"]
     root = ruby_sym(g["root"])
@@ -389,14 +399,14 @@ set :ai_root, {root}
 set :ai_scale, {scale_name}
 set :ai_master_amp, {float(g["master_amp"])}
 
-set :ai_kick_pattern, {ruby_array(find_part(spec, "kick").get("pattern", [1,0,0,0]))}
-set :ai_hat_pattern, {ruby_array(find_part(spec, "hat").get("pattern", [0,0,1,0]))}
-set :ai_snare_pattern, {ruby_array(find_part(spec, "snare").get("pattern", [0,0,0,0,1,0,0,0]))}
+set :ai_kick_pattern, {ruby_array(find_part(spec, "kick").get("pattern", [1,0,0,0]) if find_part(spec, "kick") else [1,0,0,0])}
+set :ai_hat_pattern, {ruby_array(find_part(spec, "hat").get("pattern", [0,0,1,0]) if find_part(spec, "hat") else [0,0,1,0])}
+set :ai_snare_pattern, {ruby_array(find_part(spec, "snare").get("pattern", [0,0,0,0,1,0,0,0]) if find_part(spec, "snare") else [0,0,0,0,1,0,0,0])}
 
-set :ai_bass_notes, {ruby_array(find_part(spec, "bass").get("notes", ["e1","g1","a1"]))}
-set :ai_bass_durations, {ruby_array(find_part(spec, "bass").get("durations", [0.5,0.5,1.0]))}
+set :ai_bass_notes, {ruby_array(find_part(spec, "bass").get("notes", ["e1","g1","a1"]) if find_part(spec, "bass") else ["e1","g1","a1"])}
+set :ai_bass_durations, {ruby_array(find_part(spec, "bass").get("durations", [0.5,0.5,1.0]) if find_part(spec, "bass") else [0.5,0.5,1.0])}
 
-set :ai_pad_degrees, {ruby_array(find_part(spec, "pad").get("degrees", [1,4,6,5]))}
+set :ai_pad_degrees, {ruby_array(find_part(spec, "pad").get("degrees", [1,4,6,5]) if find_part(spec, "pad") else [1,4,6,5])}
 set :ai_lead_density, {float(find_part(spec, "lead").get("density", 0.35) if find_part(spec, "lead") else 0.35)}
 
 live_loop :conductor do
@@ -454,6 +464,7 @@ live_loop :lead do
 end
 """.strip()
 
+
 def render_state_update(spec: dict) -> str:
     g = spec["global"]
     kick = find_part(spec, "kick")
@@ -480,11 +491,6 @@ set :ai_pad_degrees, {ruby_array(pad.get("degrees", [1,4,6,5])) if pad else "[1,
 set :ai_lead_density, {float(lead.get("density", 0.35) if lead else 0.35)}
 """.strip()
 
-def find_part(spec: dict, name: str):
-    for p in spec.get("parts", []):
-        if p.get("name") == name:
-            return p
-    return None
 
 def render_melody_loop(p, root, scale_name):
     synth = ruby_sym(p.get("synth", "blade"))
@@ -558,6 +564,7 @@ def render_sonic_pi_code(spec: dict) -> str:
     lines += render_master_fx_close(fx_list)
     return "\n".join(lines).strip()
 
+
 def validate_spec(spec: dict) -> dict:
     if not isinstance(spec, dict):
         raise RuntimeError("Spec is not a JSON object")
@@ -629,6 +636,7 @@ def validate_spec(spec: dict) -> dict:
 
     return spec
 
+
 def send_settings(bpm, cutoff, synth, sleep):
     bpm = int(bpm)
     cutoff = int(cutoff)
@@ -675,38 +683,39 @@ def generate_and_send(prompt_text: str):
     if not raw:
         raise RuntimeError("Ollama returned empty response")
 
-raw_json = extract_json(raw)
-spec = json.loads(raw_json)
-spec = validate_spec(spec)
+    raw_json = extract_json(raw)
+    spec = json.loads(raw_json)
+    spec = validate_spec(spec)
 
-with lock:
-    booted = state.get("engine_booted", False)
+    with lock:
+        booted = state.get("engine_booted", False)
 
-if not booted:
-    code = render_engine_boot(spec)
-else:
-    code = render_state_update(spec)
+    if not booted:
+        code = render_engine_boot(spec)
+    else:
+        code = render_state_update(spec)
 
-run_code(code)
+    run_code(code)
 
-item = {
-    "time": now(),
-    "prompt": prompt_text,
-    "spec": spec,
-    "code": code,
-}
+    item = {
+        "time": now(),
+        "prompt": prompt_text,
+        "spec": spec,
+        "code": code,
+    }
 
-with lock:
-    history.appendleft(item)
-    state["last_prompt"] = prompt_text
-    state["last_generated_code"] = code
-    state["last_error"] = None
-    state["last_sent_at"] = item["time"]
-    state["engine_booted"] = True
-    save_state()
+    with lock:
+        history.appendleft(item)
+        state["last_prompt"] = prompt_text
+        state["last_generated_code"] = code
+        state["last_error"] = None
+        state["last_sent_at"] = item["time"]
+        state["engine_booted"] = True
+        save_state()
 
     log.info("Rendered and sent Sonic Pi code")
     return item
+
 
 def send_test_ping():
     spec = DEFAULT_SPEC.copy()
@@ -722,6 +731,8 @@ def send_test_ping():
 
     log.info("Sent test composition update")
     return {"status": "ok", "message": "Test composition sent"}
+
+
 def status_payload():
     return {
         "time": now(),

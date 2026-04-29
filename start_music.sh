@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-LOG=/root/music/sonic-pi-headless.log
+LOG=/root/VibeChat/logs/sonic-pi-headless.log
 exec >>"$LOG" 2>&1
 
 echo "==== $(date) starting headless music stack ===="

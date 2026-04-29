@@ -6,8 +6,8 @@ Requires=sonic-pi-headless.service
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/root/music
-ExecStart=/usr/bin/python3 -u /root/music/ai_bridge.py
+WorkingDirectory=/root/VibeChat
+ExecStart=/usr/bin/python3 -u /root/VibeChat/ai_bridge.py
 Restart=on-failure
 RestartSec=3
 Environment=PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
