@@ -1,0 +1,18 @@
+[Unit]
+Description=Headless Sonic Pi and JACK Streaming
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/music
+ExecStart=/root/music/start_music.sh
+Restart=on-failure
+RestartSec=3
+KillMode=control-group
+TimeoutStopSec=10
+ExecStop=/usr/bin/pkill -TERM -f '/root/music/start_music.sh|sonic-pi|jackd|ffmpeg -loglevel|Xvfb :1|fluxbox|x11vnc'
+ExecStopPost=/usr/bin/pkill -KILL -f '/root/music/start_music.sh|sonic-pi|jackd|ffmpeg -loglevel|Xvfb :1|fluxbox|x11vnc'
+
+[Install]
+WantedBy=multi-user.target

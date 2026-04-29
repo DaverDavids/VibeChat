@@ -1,0 +1,203 @@
+{
+  "state": {
+    "last_prompt": "lofi",
+    "last_generated_code": "use_bpm 100\nuse_random_seed 1234\nset_volume! 0.9\n\nwith_fx :reverb, mix: 0.2, room: 0.7 do\nlive_loop :kick do\n  vals = (ring 1, 0, 1, 0, 1, 0, 1, 0)\n  hit = vals.tick\n  if hit == 1 && rand <= 1.0\n    sample :bd_haus, amp: (0.9 + rrand(-0.03, 0.03)).clamp(0, 1)\n  end\n  sleep (0.5 + rrand(-0.0, 0.0)).clamp(0.01, 4)\nend\n\nlive_loop :hat do\n  vals = (ring 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0)\n  hit = vals.tick\n  if hit == 1 && rand <= 0.9\n    sample :drum_cymbal_closed, amp: (0.35 + rrand(-0.06, 0.06)).clamp(0, 1)\n  end\n  sleep (0.25 + rrand(-0.01, 0.01)).clamp(0.01, 4)\nend\n\nlive_loop :bass do\n  use_synth :tb303\n  ns = (ring :e1, :e1, :g1, :a1)\n  ds = (ring 0.5, 0.5, 0.5, 0.5)\n  n = ns.tick(:n)\n  d = ds.tick(:d)\n  if rand <= 0.95\n    play note(n) + 0, release: 0.2, cutoff: 80, res: 0.8, amp: 0.45\n  end\n  sleep d\nend\n\nlive_loop :pad do\n  use_synth :prophet\n  degs = (ring 1, 4, 6, 5)\n  d = degs.tick\n  ch = chord_degree(d, :e2, :minor_pentatonic, :minor7, 4)\n  play ch, release: 3.2, cutoff: 92, amp: 0.22\n  sleep 4.0\nend\n\nend",
+    "last_error": null,
+    "last_sent_at": "2026-04-29 13:56:39",
+    "last_settings": {
+      "bpm": 100,
+      "cutoff": 70,
+      "synth": "supersaw",
+      "sleep": 0.5
+    }
+  },
+  "history": [
+    {
+      "time": "2026-04-29 13:56:39",
+      "prompt": "lofi",
+      "spec": {
+        "version": 1,
+        "meta": {
+          "title": "Default Focus Groove",
+          "energy": 0.4,
+          "brightness": 0.4,
+          "complexity": 0.35,
+          "swing": 0.04,
+          "seed": 1234
+        },
+        "global": {
+          "bpm": 100,
+          "root": "e2",
+          "scale": "minor_pentatonic",
+          "bar_beats": 4,
+          "master_amp": 0.9
+        },
+        "arrangement": {
+          "section_length_bars": 8,
+          "progression": [
+            {
+              "name": "main",
+              "bars": 9999,
+              "active_parts": [
+                "kick",
+                "hat",
+                "bass",
+                "pad"
+              ]
+            }
+          ]
+        },
+        "parts": [
+          {
+            "name": "kick",
+            "type": "drum",
+            "sample": "bd_haus",
+            "step_sleep": 0.5,
+            "pattern": [
+              1,
+              0,
+              1,
+              0,
+              1,
+              0,
+              1,
+              0
+            ],
+            "amp": 0.9,
+            "probability": 1.0,
+            "humanize_timing": 0.0,
+            "humanize_amp": 0.03
+          },
+          {
+            "name": "hat",
+            "type": "drum",
+            "sample": "drum_cymbal_closed",
+            "step_sleep": 0.25,
+            "pattern": [
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              1,
+              0
+            ],
+            "amp": 0.35,
+            "probability": 0.9,
+            "humanize_timing": 0.01,
+            "humanize_amp": 0.06
+          },
+          {
+            "name": "bass",
+            "type": "bass",
+            "synth": "tb303",
+            "notes": [
+              "e1",
+              "e1",
+              "g1",
+              "a1"
+            ],
+            "durations": [
+              0.5,
+              0.5,
+              0.5,
+              0.5
+            ],
+            "release": 0.2,
+            "cutoff": 80,
+            "res": 0.8,
+            "amp": 0.45,
+            "play_probability": 0.95,
+            "transpose": 0
+          },
+          {
+            "name": "pad",
+            "type": "chords",
+            "synth": "prophet",
+            "degrees": [
+              1,
+              4,
+              6,
+              5
+            ],
+            "chord_kind": "minor7",
+            "sleep": 4,
+            "release": 3.2,
+            "cutoff": 92,
+            "amp": 0.22,
+            "invert_chance": 0.25
+          }
+        ],
+        "fx": {
+          "master": [
+            {
+              "name": "reverb",
+              "mix": 0.2,
+              "room": 0.7
+            }
+          ]
+        }
+      },
+      "code": "use_bpm 100\nuse_random_seed 1234\nset_volume! 0.9\n\nwith_fx :reverb, mix: 0.2, room: 0.7 do\nlive_loop :kick do\n  vals = (ring 1, 0, 1, 0, 1, 0, 1, 0)\n  hit = vals.tick\n  if hit == 1 && rand <= 1.0\n    sample :bd_haus, amp: (0.9 + rrand(-0.03, 0.03)).clamp(0, 1)\n  end\n  sleep (0.5 + rrand(-0.0, 0.0)).clamp(0.01, 4)\nend\n\nlive_loop :hat do\n  vals = (ring 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0)\n  hit = vals.tick\n  if hit == 1 && rand <= 0.9\n    sample :drum_cymbal_closed, amp: (0.35 + rrand(-0.06, 0.06)).clamp(0, 1)\n  end\n  sleep (0.25 + rrand(-0.01, 0.01)).clamp(0.01, 4)\nend\n\nlive_loop :bass do\n  use_synth :tb303\n  ns = (ring :e1, :e1, :g1, :a1)\n  ds = (ring 0.5, 0.5, 0.5, 0.5)\n  n = ns.tick(:n)\n  d = ds.tick(:d)\n  if rand <= 0.95\n    play note(n) + 0, release: 0.2, cutoff: 80, res: 0.8, amp: 0.45\n  end\n  sleep d\nend\n\nlive_loop :pad do\n  use_synth :prophet\n  degs = (ring 1, 4, 6, 5)\n  d = degs.tick\n  ch = chord_degree(d, :e2, :minor_pentatonic, :minor7, 4)\n  play ch, release: 3.2, cutoff: 92, amp: 0.22\n  sleep 4.0\nend\n\nend"
+    },
+    {
+      "time": "2026-04-29 13:45:01",
+      "prompt": "lofi",
+      "code": "live_loop :ai_loop do\n  tempo 84\n  beat 32\n  pattern [\n    [drum \"hihat-on\"] * 6,\n    [drum \"snare-on\"] * 12,\n    [drum \"tom-top-on\"] * 8,\n    [drum \"cowbell-on\"] * 4,\n    [note \"A5\"] * 8\n  ]\nend"
+    },
+    {
+      "time": "2026-04-29 13:33:15",
+      "prompt": "lofi",
+      "code": "live_loop :ai_loop do\n  # Lo-fi Rhythm with Minimal Synthesis\n  sample :loop3, gain: -6\n  sleep 1\nend\n```\n\nThis creates a simple loop with minimal synthesis, mimicking the sound of a lo-fi rhythm."
+    },
+    {
+      "time": "2026-04-29 13:32:24",
+      "prompt": "lofi",
+      "code": "live_loop :ai_loop do\n  play \"synth_pad\"\nend"
+    },
+    {
+      "time": "2026-04-29 13:30:01",
+      "prompt": "lofi",
+      "code": "live_loop :ai_loop do\n  sample \"low-80s\"\nend"
+    },
+    {
+      "time": "2026-04-29 12:55:28",
+      "prompt": "lofi",
+      "code": "live_loop :ai_loop do\n  play \"synth_love\"\nend"
+    },
+    {
+      "time": "2026-04-29 12:54:40",
+      "prompt": "lofi",
+      "code": "live_loop :ai_loop do\n  sleep(0.5)\n  play \"lofi\"\nend"
+    },
+    {
+      "time": "2026-04-29 12:51:33",
+      "prompt": "lofi hip-hop",
+      "code": "live_loop :ai_loop do\n  play \"hi_lofi_hip_hop\"\nend"
+    },
+    {
+      "time": "2026-04-29 12:50:36",
+      "prompt": "lofi hip-hop",
+      "code": "live_loop :ai_loop do\n  sample \"ambient_lofi\"\nend"
+    },
+    {
+      "time": "2026-04-29 12:45:55",
+      "prompt": "lofi hip-hop",
+      "code": "live_loop :ai_loop do\n  play_synth :piano, gain: 0.5, amp: 1.0\n  sleep(rand(0.5..2))\n  play_sample \"lofi_hip_hop\", pitch: rand(-3..3), volume: 0.7\nend"
+    },
+    {
+      "time": "2026-04-29 12:42:25",
+      "prompt": "lofi hip-hop",
+      "code": "live_loop :ai_loop do\n  sample \"lofi_hip_hop\"\nend"
+    }
+  ]
+}

@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "meta": {
+    "title": "Late-night focus house",
+    "energy": 0.42,
+    "brightness": 0.38,
+    "complexity": 0.36,
+    "swing": 0.08,
+    "seed": 31415
+  },
+  "global": {
+    "bpm": 104,
+    "root": "e2",
+    "scale": "minor_pentatonic",
+    "bar_beats": 4,
+    "master_amp": 0.9
+  },
+  "arrangement": {
+    "section_length_bars": 8,
+    "progression": [
+      {"name": "intro", "bars": 8, "active_parts": ["kick", "hat", "pad"]},
+      {"name": "groove", "bars": 16, "active_parts": ["kick", "hat", "snare", "bass", "pad"]},
+      {"name": "lift", "bars": 8, "active_parts": ["kick", "hat", "snare", "bass", "lead", "pad"]},
+      {"name": "break", "bars": 8, "active_parts": ["hat", "pad", "texture"]},
+      {"name": "return", "bars": 16, "active_parts": ["kick", "hat", "snare", "bass", "lead", "texture"]}
+    ]
+  },
+  "parts": [
+    {
+      "name": "kick",
+      "type": "drum",
+      "sample": "bd_haus",
+      "step_sleep": 0.25,
+      "pattern": [1,0,0,0,1,0,0,0,1,0,1,0,1,0,0,0],
+      "amp": 0.95,
+      "probability": 1.0,
+      "humanize_timing": 0.0,
+      "humanize_amp": 0.03
+    },
+    {
+      "name": "hat",
+      "type": "drum",
+      "sample": "drum_cymbal_closed",
+      "step_sleep": 0.25,
+      "pattern": [0,0,1,0,0,0,1,0,0,0,1,0,0,1,1,0],
+      "amp": 0.35,
+      "probability": 0.92,
+      "humanize_timing": 0.01,
+      "humanize_amp": 0.08
+    },
+    {
+      "name": "snare",
+      "type": "drum",
+      "sample": "drum_snare_soft",
+      "step_sleep": 0.25,
+      "pattern": [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+      "amp": 0.55,
+      "probability": 0.95,
+      "humanize_timing": 0.0,
+      "humanize_amp": 0.05
+    },
+    {
+      "name": "bass",
+      "type": "bass",
+      "synth": "tb303",
+      "notes": ["e1", "e1", "g1", "a1", "b1", "a1"],
+      "durations": [0.5,0.5,0.5,0.5,1.0,1.0],
+      "release": 0.18,
+      "cutoff": 82,
+      "res": 0.85,
+      "amp": 0.5,
+      "play_probability": 0.95,
+      "transpose": 0
+    },
+    {
+      "name": "pad",
+      "type": "chords",
+      "synth": "prophet",
+      "degrees": [1, 4, 6, 5],
+      "chord_kind": "minor7",
+      "sleep": 4,
+      "release": 3.5,
+      "cutoff": 90,
+      "amp": 0.28,
+      "invert_chance": 0.35
+    },
+    {
+      "name": "lead",
+      "type": "melody",
+      "synth": "blade",
+      "octave": 1,
+      "note_pool_mode": "scale",
+      "density": 0.45,
+      "sleep_choices": [0.25, 0.5, 0.75],
+      "release_range": [0.1, 0.35],
+      "cutoff_range": [80, 110],
+      "amp": 0.22,
+      "rest_probability": 0.4,
+      "repeat_bias": 0.25
+    },
+    {
+      "name": "texture",
+      "type": "texture",
+      "sample": "ambi_soft_buzz",
+      "sleep": 8,
+      "rate_range": [0.5, 0.8],
+      "amp": 0.18,
+      "probability": 0.55
+    }
+  ],
+  "fx": {
+    "master": [
+      {"name": "reverb", "mix": 0.25, "room": 0.7},
+      {"name": "lpf", "cutoff": 110}
+    ]
+  }
+}
