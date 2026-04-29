@@ -25,7 +25,7 @@ trap cleanup EXIT TERM INT
 Xvfb :1 -screen 0 1280x800x24 &
 sleep 2
 
-DISPLAY=:1 fluxbox &
+DISPLAY=:1 openbox --sm-disable &
 x11vnc -display :1 -nopw -listen localhost -forever -bg
 
 jackd -d dummy -r 44100 -p 1024 &
@@ -44,8 +44,7 @@ done
 
 while true; do
   echo "Starting ffmpeg SRT listener on :5000"
-  ffmpeg -nostdin -loglevel warning -f jack -i ffmpeg -c:a aac -b:a 192k -ar 48000 -ac 2 \
-  -f mpegts "udp://127.0.0.1:9000?pkt_size=1316"
+  ffmpeg -nostdin -loglevel warning -f jack -i ffmpeg -c:a aac -b:a 192k -ar 48000 -ac 2 -frame_size 1024: -f mpegts srt://0.0.0.0:5000?mode=listener &
   echo "ffmpeg exited, retrying in 2s"
   sleep 2
 done &
