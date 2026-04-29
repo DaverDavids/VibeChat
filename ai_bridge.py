@@ -536,7 +536,7 @@ end
 
 def render_sonic_pi_code(spec: dict) -> str:
     g = spec["global"]
-    fx_list = spec.get("fx", {}).get("master", [])
+    fx_list = spec.get("fx", {}).get("master", []) if isinstance(spec.get("fx"), dict) else []
     lines = [
         f"use_bpm {int(g['bpm'])}",
         f"use_random_seed {int(spec['meta']['seed'])}",
@@ -575,6 +575,10 @@ def validate_spec(spec: dict) -> dict:
     spec.setdefault("arrangement", {})
     spec.setdefault("parts", [])
     spec.setdefault("fx", {})
+
+    # LLM sometimes returns fx as a list instead of {"master": [...]}
+    if not isinstance(spec["fx"], dict):
+        spec["fx"] = {}
 
     g = spec["global"]
     g["bpm"] = int(clamp(int(g.get("bpm", state["last_settings"]["bpm"])), 70, 140))
@@ -623,8 +627,7 @@ def validate_spec(spec: dict) -> dict:
 
     spec["parts"] = valid_parts
 
-    fx = spec.get("fx", {})
-    master_fx = fx.get("master", [])
+    master_fx = spec["fx"].get("master", [])
     cleaned_fx = []
     for f in master_fx:
         if not isinstance(f, dict):
