@@ -303,15 +303,151 @@ def stop_all_jobs():
         raise RuntimeError(err)
 
 
-def extract_json(text: str) -> str:
+def repair_json(text: str) -> str:
+    """
+    Best-effort repair of common small-model JSON defects:
+      1. Strip markdown fences and leading/trailing noise
+      2. Slice to outermost { ... }
+      3. Remove JS // line comments and /* block */ comments
+      4. Replace Python literals: True/False/None -> true/false/null
+      5. Replace single-quoted strings with double-quoted
+      6. Remove trailing commas before } or ]
+      7. Close any unclosed brackets/braces (truncated output)
+    """
+    # 1. strip markdown fences
     text = text.strip()
     text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.IGNORECASE)
-    text = re.sub(r"\s*```$", "", text)
+    text = re.sub(r"\s*```$", "", text.strip())
+    text = text.strip()
+
+    # 2. slice to outermost braces
     start = text.find("{")
-    end = text.rfind("}")
-    if start == -1 or end == -1 or end <= start:
-        raise RuntimeError("Model did not return JSON")
-    return text[start:end+1]
+    if start == -1:
+        raise RuntimeError("Model did not return JSON (no opening brace)")
+    # find the matching closing brace
+    depth = 0
+    end = -1
+    in_str = False
+    esc = False
+    for i, ch in enumerate(text[start:], start):
+        if esc:
+            esc = False
+            continue
+        if ch == "\\":
+            esc = True
+            continue
+        if ch == '"' and not esc:
+            in_str = not in_str
+        if in_str:
+            continue
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                end = i
+                break
+    if end == -1:
+        # truncated — take everything from start, we'll close it below
+        text = text[start:]
+    else:
+        text = text[start:end + 1]
+
+    # 3. remove JS comments (outside strings — rough but effective for model output)
+    text = re.sub(r'(?<!:)//[^\n]*', '', text)          # // line comments
+    text = re.sub(r'/\*.*?\*/', '', text, flags=re.DOTALL)  # /* block comments */
+
+    # 4. Python literals
+    text = re.sub(r'\bTrue\b',  'true',  text)
+    text = re.sub(r'\bFalse\b', 'false', text)
+    text = re.sub(r'\bNone\b',  'null',  text)
+
+    # 5. single-quoted strings -> double-quoted
+    #    Only swap outer quotes; don't touch apostrophes inside words.
+    #    Strategy: tokenise keeping track of whether we're in a double-quoted string.
+    def fix_single_quotes(s):
+        result = []
+        i = 0
+        in_dq = False
+        while i < len(s):
+            c = s[i]
+            if c == '\\' and in_dq:
+                result.append(c)
+                i += 1
+                if i < len(s):
+                    result.append(s[i])
+                    i += 1
+                continue
+            if c == '"':
+                in_dq = not in_dq
+                result.append(c)
+                i += 1
+                continue
+            if c == "'" and not in_dq:
+                # scan forward to closing single quote
+                j = i + 1
+                content = []
+                while j < len(s) and s[j] != "'":
+                    if s[j] == '\\' and j + 1 < len(s):
+                        content.append(s[j])
+                        j += 1
+                    content.append(s[j])
+                    j += 1
+                inner = ''.join(content)
+                # escape any double quotes inside
+                inner = inner.replace('"', '\\"')
+                result.append('"' + inner + '"')
+                i = j + 1
+                continue
+            result.append(c)
+            i += 1
+        return ''.join(result)
+
+    text = fix_single_quotes(text)
+
+    # 6. trailing commas before } or ]
+    text = re.sub(r',\s*([}\]])', r'\1', text)
+
+    # 7. close unclosed braces/brackets (truncated model output)
+    stack = []
+    in_str = False
+    esc = False
+    for ch in text:
+        if esc:
+            esc = False
+            continue
+        if ch == '\\':
+            esc = True
+            continue
+        if ch == '"':
+            in_str = not in_str
+        if in_str:
+            continue
+        if ch in ('{', '['):
+            stack.append(ch)
+        elif ch == '}':
+            if stack and stack[-1] == '{':
+                stack.pop()
+        elif ch == ']':
+            if stack and stack[-1] == '[':
+                stack.pop()
+
+    # close any still-open containers
+    closers = {'{': '}', '[': ']'}
+    for opener in reversed(stack):
+        text += closers[opener]
+
+    return text
+
+
+def extract_json(text: str) -> str:
+    """Extract and repair JSON from raw LLM output."""
+    try:
+        repaired = repair_json(text)
+        log.debug("Repaired JSON: %s", repaired[:200])
+        return repaired
+    except Exception as e:
+        raise RuntimeError(f"Could not extract JSON from model output: {e}")
 
 
 def clamp(x, lo, hi):
@@ -562,7 +698,6 @@ def lerp_spec(s1: dict, s2: dict, t: float) -> dict:
     merged["global"]["bpm"] = int(lerp_val(g1.get("bpm", 100), g2.get("bpm", 100), t))
     merged["global"]["master_amp"] = round(lerp_val(
         g1.get("master_amp", 0.9), g2.get("master_amp", 0.9), t), 3)
-    # interpolate lead density
     lead1 = find_part(s1, "lead")
     lead2 = find_part(s2, "lead")
     if lead1 and lead2:
@@ -782,6 +917,7 @@ def generate_and_send(prompt_text: str):
     if not raw:
         raise RuntimeError("Ollama returned empty response")
 
+    log.debug("Raw model output: %s", raw[:500])
     raw_json = extract_json(raw)
     spec = json.loads(raw_json)
     spec = validate_spec(spec)
@@ -836,7 +972,7 @@ def send_test_ping():
 
 def evolution_loop():
     """Background thread: auto-evolve the music every EVOLUTION_INTERVAL seconds."""
-    time.sleep(EVOLUTION_INTERVAL)  # wait before first auto-evolution
+    time.sleep(EVOLUTION_INTERVAL)
     while True:
         try:
             with lock:
