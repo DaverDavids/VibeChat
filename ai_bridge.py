@@ -31,6 +31,11 @@ EVOLUTION_INTERVAL = 180   # seconds between automatic evolutions
 MORPH_STEPS        = 8     # number of intermediate state pushes per transition
 MORPH_STEP_DELAY   = 4.0  # seconds between each morph step
 
+# Ollama timeouts: (connect_timeout, per-chunk read timeout).
+# Streaming means we receive tokens continuously, so the per-chunk timer
+# resets on every token — generation can run as long as the model needs.
+OLLAMA_TIMEOUT = (10, 120)
+
 DEFAULT_SETTINGS = {
     "bpm": 88,
     "cutoff": 82,
@@ -944,9 +949,14 @@ def morph_to_spec(old_spec: dict, new_spec: dict):
             time.sleep(MORPH_STEP_DELAY)
 
 
-def generate_and_send(prompt_text: str):
-    settings = state["last_settings"]
+def ollama_generate(prompt_text: str, settings: dict) -> str:
+    """
+    Call Ollama using streaming so we receive tokens incrementally.
+    This avoids the read timeout that fires when the model takes >60s on a
+    non-streaming request — each streamed chunk resets the idle timer.
 
+    Returns the full assembled response string.
+    """
     payload = {
         "model": MODEL,
         "prompt": (
@@ -956,20 +966,44 @@ def generate_and_send(prompt_text: str):
             f"Return a JSON composition spec only."
         ),
         "system": SYSTEM_PROMPT,
-        "stream": False,
+        "stream": True,
         "options": {
             "temperature": 0.85,
         },
     }
 
-    log.info("Generating music spec for prompt: %s", prompt_text)
-
-    response = requests.post(OLLAMA_URL, json=payload, timeout=60)
+    response = requests.post(
+        OLLAMA_URL,
+        json=payload,
+        timeout=OLLAMA_TIMEOUT,
+        stream=True,
+    )
     response.raise_for_status()
-    raw = response.json().get("response", "").strip()
 
+    parts = []
+    for line in response.iter_lines():
+        if not line:
+            continue
+        try:
+            chunk = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        parts.append(chunk.get("response", ""))
+        if chunk.get("done"):
+            break
+
+    raw = "".join(parts).strip()
     if not raw:
         raise RuntimeError("Ollama returned empty response")
+    return raw
+
+
+def generate_and_send(prompt_text: str):
+    settings = state["last_settings"]
+
+    log.info("Generating music spec for prompt: %s", prompt_text)
+
+    raw = ollama_generate(prompt_text, settings)
 
     log.debug("Raw model output: %s", raw[:500])
     raw_json = extract_json(raw)
