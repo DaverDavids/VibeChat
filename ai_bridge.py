@@ -751,8 +751,11 @@ def validate_spec(spec: dict) -> dict:
     spec.setdefault("parts", [])
     spec.setdefault("fx", {})
 
+    # Coerce top-level fields that must be dicts (model occasionally returns lists)
     if not isinstance(spec["fx"], dict):
         spec["fx"] = {}
+    if not isinstance(spec["arrangement"], dict):
+        spec["arrangement"] = {}
 
     g = spec["global"]
     g["bpm"] = int(clamp(int(g.get("bpm", state["last_settings"]["bpm"])), 70, 140))
