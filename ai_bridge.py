@@ -83,7 +83,8 @@ Part rules:
 - chord_kind: minor7, major7, dom7, minor, major (minor7/major7 for lofi jazz feel)
 - arp parts: direction "up"/"down"/"ping_pong", sleep 0.25-0.5, amp 0.10-0.18, probability 0.7-0.9
 - perc parts: sparse patterns, probability 0.5-0.75. Use tabla_ke1 or perc_snap samples.
-- lead/melody: density 0.3-0.55, sleep_choices like [0.25, 0.5, 0.5, 0.75], repeat_bias 0.2-0.35
+- lead/melody: density 0.3-0.55, sleep_choices like [0.25, 0.5, 0.5, 0.75], repeat_bias 0.2-0.35,
+  step_bias 0.4-0.6 (chance to move by scale step rather than leap — higher=more stepwise/melodic).
 - texture: ambi samples, sleep 8-16, amp 0.10-0.20, probability 0.4-0.6
 - Amp targets: drums 0.5-0.9, bass 0.3-0.5, pads 0.15-0.28, leads/arps 0.10-0.22
 - Allowed scales: minor_pentatonic, major_pentatonic, minor, major, dorian, mixolydian
@@ -219,7 +220,8 @@ DEFAULT_SPEC = {
             "cutoff_range": [78, 112],
             "amp": 0.17,
             "rest_probability": 0.38,
-            "repeat_bias": 0.28
+            "repeat_bias": 0.28,
+            "step_bias": 0.5
         },
         {
             "name": "arp",
@@ -555,7 +557,18 @@ def render_master_fx_close(fx_list):
     return ["end" for _ in fx_list]
 
 
-def render_drum_loop(p):
+# ---------------------------------------------------------------------------
+# Ruby clamp helper: Sonic Pi bundles a custom clamp(max) that only accepts
+# ONE argument.  We use the standard Ruby idiom [[x, lo].max, hi].min
+# everywhere instead of x.clamp(lo, hi).
+# ---------------------------------------------------------------------------
+
+def _rb_clamp(expr: str, lo, hi) -> str:
+    """Return a Ruby expression that clamps `expr` between lo and hi."""
+    return f"[[({expr}), {lo}].max, {hi}].min"
+
+
+def render_drum_loop(p, swing: float = 0.0):
     pattern = p.get("pattern", [1, 0, 0, 0])
     step_sleep = float(p.get("step_sleep", 0.25))
     probability = float(clamp(float(p.get("probability", 1.0)), 0.0, 1.0))
@@ -563,20 +576,30 @@ def render_drum_loop(p):
     sample = ruby_sym(p.get("sample", "bd_haus"))
     humanize_timing = float(clamp(float(p.get("humanize_timing", 0.0)), 0.0, 0.05))
     humanize_amp = float(clamp(float(p.get("humanize_amp", 0.0)), 0.0, 0.3))
+    # Swing: off-beats (odd step index) are delayed by swing_offset beats
+    swing_offset = float(clamp(swing, 0.0, 0.2)) * step_sleep
+
+    amp_expr = _rb_clamp(f"{amp} + rrand(-{humanize_amp}, {humanize_amp})", 0, 1)
+    sleep_expr = _rb_clamp(
+        f"{step_sleep} + _sw_off + rrand(-{humanize_timing}, {humanize_timing})",
+        0.01, 4
+    )
 
     return f"""
 live_loop :{p["name"]} do
+  _si = tick
   vals = (ring {", ".join(str(int(bool(x))) for x in pattern)})
-  hit = vals.tick
+  hit = vals.look
+  _sw_off = (_si % 2 == 1) ? {swing_offset:.5f} : 0
   if hit == 1 && rand <= {probability}
-    sample {sample}, amp: ({amp} + rrand(-{humanize_amp}, {humanize_amp})).clamp(0, 1)
+    sample {sample}, amp: {amp_expr}
   end
-  sleep ({step_sleep} + rrand(-{humanize_timing}, {humanize_timing})).clamp(0.01, 4)
+  sleep {sleep_expr}
 end
 """.strip()
 
 
-def render_perc_loop(p):
+def render_perc_loop(p, swing: float = 0.0):
     """Render a sparse percussive loop (tabla, snaps, etc.) with per-step probability."""
     pattern = p.get("pattern", [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0])
     step_sleep = float(p.get("step_sleep", 0.25))
@@ -585,15 +608,23 @@ def render_perc_loop(p):
     sample = ruby_sym(p.get("sample", "tabla_ke1"))
     rate_range = p.get("rate_range", [0.85, 1.15])
     humanize_timing = float(clamp(float(p.get("humanize_timing", 0.008)), 0.0, 0.05))
+    swing_offset = float(clamp(swing, 0.0, 0.2)) * step_sleep
+
+    sleep_expr = _rb_clamp(
+        f"{step_sleep} + _sw_off + rrand(-{humanize_timing}, {humanize_timing})",
+        0.01, 4
+    )
 
     return f"""
 live_loop :{p["name"]} do
+  _si = tick
   vals = (ring {", ".join(str(int(bool(x))) for x in pattern)})
-  hit = vals.tick
+  hit = vals.look
+  _sw_off = (_si % 2 == 1) ? {swing_offset:.5f} : 0
   if hit == 1 && rand <= {probability}
     sample {sample}, rate: rrand({float(rate_range[0])}, {float(rate_range[1])}), amp: {amp}
   end
-  sleep ({step_sleep} + rrand(-{humanize_timing}, {humanize_timing})).clamp(0.01, 4)
+  sleep {sleep_expr}
 end
 """.strip()
 
@@ -665,21 +696,30 @@ end
 
 
 def render_chord_loop(p, root, scale_name):
+    """
+    Render chords using real chord voicings (minor7, major7, dom7, etc.).
+    For each scale degree, we find the actual root pitch via scale[], then
+    build the chord with Sonic Pi's chord() function so that chord_kind is
+    respected — not just a diatonic chord_degree slice.
+    """
     synth = ruby_sym(p.get("synth", "prophet"))
     degrees = p.get("degrees", [1, 4, 6, 5])
     sleep_val = float(p.get("sleep", 4))
     release = float(p.get("release", 3.0))
     cutoff = int(clamp(int(p.get("cutoff", 90)), 40, 130))
     amp = float(clamp(float(p.get("amp", 0.25)), 0.0, 1.0))
-    # invert_chance: randomly rotate the chord voicing for harmonic variety
     invert_chance = float(clamp(float(p.get("invert_chance", 0.0)), 0.0, 1.0))
+    # chord_kind: minor7, major7, dom7, minor, major — use directly with chord()
+    chord_kind = ruby_sym(p.get("chord_kind", "minor7"))
 
     return f"""
 live_loop :{p["name"]} do
   use_synth {synth}
   degs = (ring {", ".join(str(int(d)) for d in degrees)})
   d = degs.tick
-  ch = chord_degree(d, {ruby_sym(root)}, {ruby_sym(scale_name)}, 4)
+  sc = scale({ruby_sym(root)}, {ruby_sym(scale_name)})
+  root_n = sc[[(d - 1), 0].max % sc.length]
+  ch = chord(root_n, {chord_kind})
   inv = (rand < {invert_chance}) ? rand_i(3) : 0
   play ch.rotate(inv), release: {release}, cutoff: {cutoff}, amp: {amp}
   sleep {sleep_val}
@@ -688,6 +728,14 @@ end
 
 
 def render_melody_loop(p, root, scale_name):
+    """
+    Render a melody loop with step-motion bias.
+    Tracks the current scale index (@<name>_idx) so we can prefer ±1-step
+    motion over random leaps, giving phrases more melodic coherence.
+    repeat_bias  — chance to replay the exact last note
+    step_bias    — chance to move by a single scale step (up or down)
+    remainder    — random note from the scale
+    """
     synth = ruby_sym(p.get("synth", "blade"))
     octave = int(p.get("octave", 1))
     density = float(clamp(float(p.get("density", 0.4)), 0.0, 1.0))
@@ -696,21 +744,33 @@ def render_melody_loop(p, root, scale_name):
     cutoff_range = p.get("cutoff_range", [80, 110])
     amp = float(clamp(float(p.get("amp", 0.2)), 0.0, 1.0))
     rest_probability = float(clamp(float(p.get("rest_probability", 0.35)), 0.0, 1.0))
-    # repeat_bias: chance to replay the last note for lofi phrase repetition
     repeat_bias = float(clamp(float(p.get("repeat_bias", 0.0)), 0.0, 1.0))
+    # step_bias: probability of moving by ±1 scale step (vs random leap)
+    step_bias = float(clamp(float(p.get("step_bias", 0.5)), 0.0, 1.0))
     loop_name = p["name"]
+    num_oct = max(1, octave + 1)
 
     return f"""
 live_loop :{loop_name} do
   use_synth {synth}
-  ns = scale({ruby_sym(root)}, {ruby_sym(scale_name)}, num_octaves: {max(1, octave + 1)})
+  ns = scale({ruby_sym(root)}, {ruby_sym(scale_name)}, num_octaves: {num_oct})
   if rand > {rest_probability}
-    n = (rand < {repeat_bias} && @{loop_name}_last) ? @{loop_name}_last : ns.choose
-    @{loop_name}_last = n
+    @{loop_name}_idx = @{loop_name}_idx || rand_i(ns.length)
+    r = rand
+    if r < {repeat_bias}
+      # repeat last note
+    elsif r < {repeat_bias + step_bias}
+      # step motion: move ±1 scale step
+      @{loop_name}_idx = (@{loop_name}_idx + (rand < 0.55 ? 1 : -1)) % ns.length
+    else
+      # leap: jump to any random scale note
+      @{loop_name}_idx = rand_i(ns.length)
+    end
+    n = ns[@{loop_name}_idx]
     play n,
       release: rrand({float(release_range[0])}, {float(release_range[1])}),
       cutoff: rrand_i({int(cutoff_range[0])}, {int(cutoff_range[1])}),
-      amp: {amp * max(0.2, density)},
+      amp: {amp * max(0.2, density):.4f},
       pan: rrand(-0.4, 0.4)
   end
   sleep (ring {", ".join(str(float(x)) for x in sleep_choices)}).choose
@@ -749,6 +809,7 @@ def render_sonic_pi_code(spec: dict) -> str:
     live_loops with the same name at the next safe loop boundary.
     """
     g = spec["global"]
+    swing = float(spec.get("meta", {}).get("swing", 0.0))
     fx_list = spec.get("fx", {}).get("master", []) if isinstance(spec.get("fx"), dict) else []
     lines = [
         f"use_bpm {int(g['bpm'])}",
@@ -762,9 +823,9 @@ def render_sonic_pi_code(spec: dict) -> str:
     for p in spec["parts"]:
         ptype = p.get("type")
         if ptype == "drum":
-            lines.append(render_drum_loop(p))
+            lines.append(render_drum_loop(p, swing=swing))
         elif ptype == "perc":
-            lines.append(render_perc_loop(p))
+            lines.append(render_perc_loop(p, swing=swing))
         elif ptype == "bass":
             lines.append(render_bass_loop(p, g["root"], g["scale"]))
         elif ptype == "chords":
