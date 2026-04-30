@@ -969,6 +969,7 @@ def ollama_generate(prompt_text: str, settings: dict) -> str:
         "stream": True,
         "options": {
             "temperature": 0.85,
+            "num_thread": 4
         },
     }
 
