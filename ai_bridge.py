@@ -1,4 +1,4 @@
-#!/usr/bin/env python3 test
+#!/usr/bin/env python3
 
 import copy
 import random
@@ -24,7 +24,6 @@ STATE_FILE = BASE_DIR / "ai_state.json"
 
 OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
 WEB_PORT = 8081
-#MODEL = "qwen2.5:1.5b"
 MODEL = "qwen2.5:7b"
 
 # --- Evolution / morphing tuning ---
@@ -42,12 +41,37 @@ DEFAULT_SETTINGS = {
 SYSTEM_PROMPT = """
 You are composing evolving lofi/background focus music for Sonic Pi. Output JSON only, no markdown.
 
-Rules:
-- Output valid JSON only using schema: version, meta, global, arrangement, parts, fx
+Schema fields: version, meta, global, arrangement, parts, fx
+
+Meta rules:
+- meta.title: short evocative name for the piece.
+- meta.energy: 0.0-1.0. Overall energy level.
+- meta.brightness: 0.0-1.0. Tonal brightness.
+- meta.complexity: 0.0-1.0. Rhythmic/harmonic complexity.
+- meta.swing: 0.0-0.2. Shuffle feel.
+- meta.seed: integer random seed.
+- meta.energy_curve: one of "rise", "fall", "plateau", "arc". Describes the energy shape over time.
+  rise=builds throughout, fall=starts full then strips back, plateau=steady, arc=peaks in middle.
+- meta.style_tags: list of 2-4 tags from: jazzy, city-pop, vaporwave, late-night, rainy, chill-hop,
+  nostalgic, ambient, dreamy, melancholic, upbeat, hazy.
+  Tags MUST influence choices: jazzy->minor7/dom7 chords+dorian; rainy->slow bpm+ambi textures+hollow synth;
+  vaporwave->major7+major_pentatonic+dsaw; upbeat->higher bpm+bright cutoff; dreamy->high reverb+ambi.
+
+Arrangement rules:
+- arrangement.progression MUST contain 3-5 named sections. Example names: intro, build, main, drop, outro.
+- Each section: {"name": "...", "bars": <int>, "active_parts": [<part names>]}
+- intro: sparse, 4-8 bars, only 2-3 parts (e.g. hat, pad, texture).
+- build: 8 bars, add kick+bass layer, still no lead/arp.
+- main: 16 bars, full arrangement, all parts active.
+- drop: 8 bars, remove kick+bass, leave pads/lead/texture for contrast.
+- outro: last section, bars=9999 (loops forever), strip back to 3-4 parts.
+- energy_curve influences how active_parts grow or shrink across sections.
+
+Part rules:
 - bpm: 72-118. Lofi sweet spot is 75-95. Avoid jarring BPM jumps.
 - Always include: kick, hat, bass, pad. Optionally add: snare, lead, texture, perc, arp.
-- Prefer 6-8 parts total for richness. More parts = more interesting tracks.
-- Part types allowed: drum, bass, chords, melody, texture, perc, arp
+- Prefer 6-8 parts total for richness.
+- Part types: drum, bass, chords, melody, texture, perc, arp
 - Drum patterns: syncopated, ghost notes, off-beat hats. Not just simple 1/0 grids.
 - Bass: 4-8 notes, varied durations. tb303 with res 0.7-0.9 for lofi warmth.
 - Pad degrees: at least 4 chords e.g. [1,6,4,5] or [1,3,4,7]. Use invert_chance 0.25-0.4.
@@ -59,7 +83,8 @@ Rules:
 - Amp targets: drums 0.5-0.9, bass 0.3-0.5, pads 0.15-0.28, leads/arps 0.10-0.22
 - Allowed scales: minor_pentatonic, major_pentatonic, minor, major, dorian, mixolydian
 - Allowed synths: beep, sine, tri, pulse, fm, prophet, tb303, blade, dsaw, supersaw, hollow
-- Allowed samples: bd_haus, drum_snare_soft, drum_cymbal_closed, elec_blip, elec_tick, perc_snap, tabla_ke1, ambi_soft_buzz, ambi_lunar_land, guit_em9
+- Allowed samples: bd_haus, drum_snare_soft, drum_cymbal_closed, elec_blip, elec_tick, perc_snap,
+  tabla_ke1, ambi_soft_buzz, ambi_lunar_land, guit_em9
 - Allowed fx: reverb, echo, lpf, hpf, ixi_techno, slicer, distortion, wobble, krush
 - Add at least one fx: reverb mix 0.2-0.35 room 0.6-0.85. Echo mix 0.08-0.15 is a nice pair.
 - For authentic lofi: dorian/minor scale, jazzy chord degrees, tabla/perc accents, blade leads, ambi textures.
@@ -83,6 +108,13 @@ ALLOWED_FX = {
     "reverb", "echo", "lpf", "hpf", "ixi_techno", "slicer", "distortion", "wobble", "krush"
 }
 
+ALLOWED_ENERGY_CURVES = {"rise", "fall", "plateau", "arc"}
+
+ALLOWED_STYLE_TAGS = {
+    "jazzy", "city-pop", "vaporwave", "late-night", "rainy", "chill-hop",
+    "nostalgic", "ambient", "dreamy", "melancholic", "upbeat", "hazy"
+}
+
 DEFAULT_SPEC = {
     "version": 1,
     "meta": {
@@ -91,7 +123,9 @@ DEFAULT_SPEC = {
         "brightness": 0.35,
         "complexity": 0.42,
         "swing": 0.06,
-        "seed": 4242
+        "seed": 4242,
+        "energy_curve": "arc",
+        "style_tags": ["jazzy", "late-night"]
     },
     "global": {
         "bpm": 88,
@@ -103,7 +137,11 @@ DEFAULT_SPEC = {
     "arrangement": {
         "section_length_bars": 8,
         "progression": [
-            {"name": "main", "bars": 9999, "active_parts": ["kick", "hat", "snare", "bass", "pad", "lead", "arp", "perc", "texture"]}
+            {"name": "intro",  "bars": 8,    "active_parts": ["hat", "pad", "texture"]},
+            {"name": "build",  "bars": 8,    "active_parts": ["kick", "hat", "bass", "pad", "texture"]},
+            {"name": "main",   "bars": 16,   "active_parts": ["kick", "hat", "snare", "bass", "pad", "lead", "arp", "perc", "texture"]},
+            {"name": "drop",   "bars": 8,    "active_parts": ["hat", "pad", "lead", "texture"]},
+            {"name": "outro",  "bars": 9999, "active_parts": ["kick", "hat", "bass", "pad", "texture"]}
         ]
     },
     "parts": [
@@ -702,7 +740,7 @@ def find_part(spec: dict, name: str):
 def render_sonic_pi_code(spec: dict) -> str:
     """
     Single source of truth for all Sonic Pi code generation.
-    Used for both initial boot and live updates — Sonic Pi hot-swaps
+    Used for both initial boot and live updates - Sonic Pi hot-swaps
     live_loops with the same name at the next safe loop boundary.
     """
     g = spec["global"]
@@ -733,7 +771,7 @@ def render_sonic_pi_code(spec: dict) -> str:
         elif ptype == "texture":
             lines.append(render_texture_loop(p))
         else:
-            log.warning("Unknown part type %r for part %r — skipped", ptype, p.get("name"))
+            log.warning("Unknown part type %r for part %r - skipped", ptype, p.get("name"))
 
         lines.append("")
 
@@ -775,10 +813,29 @@ def validate_spec(spec: dict) -> dict:
     meta["swing"] = float(clamp(float(meta.get("swing", 0.0)), 0.0, 0.2))
     meta["seed"] = int(meta.get("seed", random.randint(1, 999999)))
 
+    # energy_curve
+    meta["energy_curve"] = str(meta.get("energy_curve", "arc")).lower()
+    if meta["energy_curve"] not in ALLOWED_ENERGY_CURVES:
+        meta["energy_curve"] = "arc"
+
+    # style_tags
+    raw_tags = meta.get("style_tags", [])
+    if not isinstance(raw_tags, list):
+        raw_tags = []
+    meta["style_tags"] = [
+        str(t).lower() for t in raw_tags
+        if str(t).lower() in ALLOWED_STYLE_TAGS
+    ][:4]
+    if not meta["style_tags"]:
+        meta["style_tags"] = ["jazzy", "late-night"]
+
     arr = spec["arrangement"]
     prog = arr.get("progression", [])
     if not isinstance(prog, list) or not prog:
-        arr["progression"] = [{"name": "main", "bars": 9999, "active_parts": []}]
+        arr["progression"] = [
+            {"name": "intro",  "bars": 8,    "active_parts": []},
+            {"name": "main",   "bars": 9999, "active_parts": []},
+        ]
 
     VALID_TYPES = {"drum", "perc", "bass", "chords", "melody", "arp", "texture"}
     valid_parts = []
@@ -978,8 +1035,10 @@ def evolution_loop():
                 last_spec = state.get("last_spec")
             if booted and last_spec:
                 title = last_spec.get("meta", {}).get("title", "current piece")
+                tags = last_spec.get("meta", {}).get("style_tags", [])
+                tag_hint = f" (style: {', '.join(tags)})" if tags else ""
                 prompt = (
-                    f"Subtly evolve '{title}'. Keep the same mood but shift one or two "
+                    f"Subtly evolve '{title}'{tag_hint}. Keep the same mood but shift one or two "
                     f"elements: adjust rhythm density, transpose the bass slightly, alter "
                     f"pad degrees, or gently brighten/darken the texture. Stay subtle."
                 )
@@ -992,6 +1051,8 @@ def evolution_loop():
 
 
 def status_payload():
+    last_spec = state.get("last_spec") or {}
+    last_meta = last_spec.get("meta", {})
     return {
         "time": now(),
         "ollama_up": tcp_check("127.0.0.1", 11434),
@@ -1007,6 +1068,14 @@ def status_payload():
         "settings": state.get("last_settings"),
         "engine_booted": state.get("engine_booted", False),
         "evolution_interval_sec": EVOLUTION_INTERVAL,
+        "now_playing": {
+            "title": last_meta.get("title"),
+            "energy_curve": last_meta.get("energy_curve"),
+            "style_tags": last_meta.get("style_tags", []),
+            "bpm": last_spec.get("global", {}).get("bpm"),
+            "scale": last_spec.get("global", {}).get("scale"),
+            "root": last_spec.get("global", {}).get("root"),
+        },
     }
 
 
