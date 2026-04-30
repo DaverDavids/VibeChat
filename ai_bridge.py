@@ -24,7 +24,8 @@ STATE_FILE = BASE_DIR / "ai_state.json"
 
 OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
 WEB_PORT = 8081
-MODEL = "qwen2.5:1.5b"
+#MODEL = "qwen2.5:1.5b"
+MODEL = "qwen2.5:7b"
 
 # --- Evolution / morphing tuning ---
 EVOLUTION_INTERVAL = 180   # seconds between automatic evolutions
